@@ -1,0 +1,72 @@
+pipeline {
+  agent any
+
+  environment {
+    REGISTRY_URL = "nexus.your-domain.com:8082"   // or JFrog URL
+    IMAGE_NAME   = "devops-demo-app"
+    SONARQUBE    = "sonarqube-server"             // Jenkins SonarQube config name
+    KUBE_CONTEXT = "your-eks-context"
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        git branch: 'main',
+            url: 'https://github.com/your-org/devops-demo-platform.git'
+      }
+    }
+
+    stage('Build with Maven') {
+      dir('app') {
+        steps {
+          sh 'mvn clean package -DskipTests=false'
+        }
+      }
+    }
+
+    stage('SonarQube Analysis') {
+      dir('app') {
+        steps {
+          withSonarQubeEnv("${SONARQUBE}") {
+            sh 'mvn sonar:sonar'
+          }
+        }
+      }
+    }
+
+    stage('Docker Build & Push') {
+      steps {
+        dir('app') {
+          sh """
+            docker build -t ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER} .
+            docker push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}
+          """
+        }
+      }
+    }
+
+    stage('Deploy to Kubernetes') {
+      steps {
+        withKubeConfig([credentialsId: 'eks-kubeconfig']) {
+          sh """
+            kubectl set image deployment/app \
+              app=${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER} \
+              -n devops-demo || kubectl apply -f k8s/
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      archiveArtifacts artifacts: 'app/target/*.jar', fingerprint: true
+    }
+    success {
+      echo 'Deployment successful!'
+    }
+    failure {
+      echo 'Build failed!'
+    }
+  }
+}

@@ -1,0 +1,7 @@
+---
+- hosts: tools
+  become: yes
+  roles:
+    - common
+    - sonarqube
+    - nexus

@@ -1,0 +1,9 @@
+---
+- name: Run Nexus Repository OSS in Docker
+  docker_container:
+    name: nexus
+    image: sonatype/nexus3:latest
+    state: started
+    restart_policy: always
+    ports:
+      - "8081:8081"
