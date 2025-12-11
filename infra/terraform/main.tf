@@ -13,7 +13,7 @@ provider "aws" {
 }
 
 # --------------------------------------------------
-# VPC
+# VPC Module
 # --------------------------------------------------
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
@@ -37,11 +37,11 @@ module "vpc" {
 }
 
 # --------------------------------------------------
-# EKS (Free-Tier compatible)
+# EKS Module (Free-Tier Compatible)
 # --------------------------------------------------
 module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "21.10.1"
+  # Force Terraform to pull correct version directly from GitHub
+  source  = "github.com/terraform-aws-modules/terraform-aws-eks?ref=v21.10.1"
 
   name               = "${var.project}-eks"
   kubernetes_version = "1.29"
@@ -49,30 +49,29 @@ module "eks" {
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
 
-  # Give the cluster creator (you) admin access
   enable_cluster_creator_admin_permissions = true
 
-  # Core addons managed automatically
-  # cluster_addons = {
-  #   coredns   = { most_recent = true }
-  #   kube-proxy = { most_recent = true }
-  #   vpc-cni   = { most_recent = true }
-  # }
+  # Core EKS Add-ons
+  cluster_addons = {
+    coredns   = { most_recent = true }
+    kube-proxy = { most_recent = true }
+    vpc-cni   = { most_recent = true }
+  }
 
-  # # Node group defaults
-  # eks_managed_node_group_defaults = {
-  #   ami_type  = "AL2_x86_64"
-  #   disk_size = 20
+  # Default settings for managed node groups
+  eks_managed_node_group_defaults = {
+    ami_type  = "AL2_x86_64"
+    disk_size = 20
 
-  #   # IAM permissions for worker nodes
-  #   iam_role_additional_policies = {
-  #     AmazonEKSWorkerNodePolicy          = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  #     AmazonEKS_CNI_Policy               = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  #     AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  #   }
-  # }
+    # Attach required IAM policies for node roles
+    iam_role_additional_policies = {
+      AmazonEKSWorkerNodePolicy          = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+      AmazonEKS_CNI_Policy               = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+      AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+    }
+  }
 
-  # Single-node cluster for free-tier
+  # Free-tier compatible node group
   eks_managed_node_groups = {
     default = {
       min_size      = 1
@@ -85,11 +84,11 @@ module "eks" {
 }
 
 # --------------------------------------------------
-# Jenkins EC2
+# Jenkins EC2 Instance
 # --------------------------------------------------
 resource "aws_instance" "jenkins" {
   ami                         = var.jenkins_ami_id
-  instance_type               = "t3.micro" # ✅ free-tier
+  instance_type               = "t3.micro"  # ✅ Free tier eligible
   subnet_id                   = module.vpc.public_subnets[0]
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.jenkins_sg.id]
@@ -100,26 +99,32 @@ resource "aws_instance" "jenkins" {
   }
 }
 
+# --------------------------------------------------
+# Jenkins Security Group
+# --------------------------------------------------
 resource "aws_security_group" "jenkins_sg" {
   name        = "${var.project}-jenkins-sg"
-  description = "Security group for Jenkins"
+  description = "Security group for Jenkins EC2"
   vpc_id      = module.vpc.vpc_id
 
   ingress {
+    description = "Allow Jenkins Web Access"
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # open for demo, restrict in production
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   ingress {
+    description = "Allow SSH Access"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"] # open for demo, restrict in production
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
+    description = "Allow all outbound traffic"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
