@@ -1,3 +1,40 @@
-target/
+# ===== Terraform =====
+*.terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.auto.tfvars
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfplan
+.terraform.lock.hcl
+terraform.tfstate.backup
+
+# ===== Ansible =====
+*.retry
+
+# ===== Python / Shell / Logs =====
+*.log
+*.tmp
+*.bak
+
+# ===== Maven / Java =====
+app/target/
+app/*.jar
+
+# ===== Docker =====
+*.env
+docker-compose.override.yml
+
+# ===== IDEs / Editors =====
+.vscode/
+.idea/
+*.swp
+
+# ===== OS Files =====
 .DS_Store
-infra/terraform/.terraform/%
+Thumbs.db
