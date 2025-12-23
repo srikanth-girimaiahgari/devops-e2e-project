@@ -40,46 +40,41 @@ module "vpc" {
 # EKS Module (Free-Tier Compatible)
 # --------------------------------------------------
 module "eks" {
-  # Force Terraform to pull correct version directly from GitHub
-  source  = "github.com/terraform-aws-modules/terraform-aws-eks?ref=v21.10.1"
-
-  name               = "${var.project}-eks"
-  kubernetes_version = "1.29"
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 20.31"  # Latest 20.x version with fixes
+  
+  cluster_name    = "${var.project}-eks"
+  cluster_version = "1.29"
+  
+  cluster_endpoint_public_access = true
 
   vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  subnet_ids = module.vpc.private_subnets  # ✅ Fixed: was commented out
 
-  enable_cluster_creator_admin_permissions = true
+  # Optional: Enable logging
+  cluster_enabled_log_types = ["api", "audit", "authenticator"]
 
-  # Core EKS Add-ons
-  cluster_addons = {
-    coredns   = { most_recent = true }
-    kube-proxy = { most_recent = true }
-    vpc-cni   = { most_recent = true }
-  }
-
-  # Default settings for managed node groups
-  eks_managed_node_group_defaults = {
-    ami_type  = "AL2_x86_64"
-    disk_size = 20
-
-    # Attach required IAM policies for node roles
-    iam_role_additional_policies = {
-      AmazonEKSWorkerNodePolicy          = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-      AmazonEKS_CNI_Policy               = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-      AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-    }
-  }
-
-  # Free-tier compatible node group
+  # Managed node group
   eks_managed_node_groups = {
     default = {
-      min_size      = 1
-      max_size      = 1
-      desired_size  = 1
+      min_size     = 1
+      max_size     = 1
+      desired_size = 1
+      
       instance_types = ["t3.micro"]
-      capacity_type  = "ON_DEMAND"
+
+      # ✅ Fixed: Correct structure for v20.x
+      iam_role_additional_policies = {
+        AmazonEKSWorkerNodePolicy          = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+        AmazonEKS_CNI_Policy               = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+        AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+      }
     }
+  }
+
+  tags = {
+    Environment = "dev"
+    Terraform   = "true"
   }
 }
 
@@ -88,11 +83,12 @@ module "eks" {
 # --------------------------------------------------
 resource "aws_instance" "jenkins" {
   ami                         = var.jenkins_ami_id
-  instance_type               = "t3.micro"  # ✅ Free tier eligible
+  instance_type               = "t3.micro"
   subnet_id                   = module.vpc.public_subnets[0]
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.jenkins_sg.id]
-  key_name                    = var.key_pair_name
+  key_name                    = aws_key_pair.devops_key.key_name
+
 
   tags = {
     Name = "${var.project}-jenkins"
@@ -112,7 +108,7 @@ resource "aws_security_group" "jenkins_sg" {
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # ⚠️ Consider restricting to your IP
   }
 
   ingress {
@@ -120,7 +116,7 @@ resource "aws_security_group" "jenkins_sg" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["0.0.0.0/0"]  # ⚠️ Consider restricting to your IP
   }
 
   egress {
@@ -129,5 +125,9 @@ resource "aws_security_group" "jenkins_sg" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "${var.project}-jenkins-sg"
   }
 }
