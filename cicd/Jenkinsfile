@@ -2,17 +2,19 @@ pipeline {
   agent any
 
   environment {
-    REGISTRY_URL = "nexus.your-domain.com:8082"   // or JFrog URL
+    // REGISTRY_URL = "srikanthgirimaiahgari"   // or JFrog URL
     IMAGE_NAME   = "devops-demo-app"
-    SONARQUBE    = "sonarqube-server"             // Jenkins SonarQube config name
-    KUBE_CONTEXT = "your-eks-context"
+    DOCKERHUB_USERNAME = "${DOCKERHUB_USERNAME}"  
+    DOCKERHUB_PASSWORD = "${DOCKERHUB_PASSWORD}"
+    // SONARQUBE    = "sonarqube-server"             // Jenkins SonarQube config name
+    // KUBE_CONTEXT = "your-eks-context"
   }
 
   stages {
     stage('Checkout') {
       steps {
         git branch: 'main',
-            url: 'https://github.com/your-org/devops-demo-platform.git'
+            url: 'https://github.com/srikanth-girimaiahgari/devops-e2e-project.git'
       }
     }
 
@@ -24,38 +26,39 @@ pipeline {
       }
     }
 
-    stage('SonarQube Analysis') {
-      dir('app') {
-        steps {
-          withSonarQubeEnv("${SONARQUBE}") {
-            sh 'mvn sonar:sonar'
-          }
-        }
-      }
-    }
+    // stage('SonarQube Analysis') {
+    //   dir('app') {
+    //     steps {
+    //       withSonarQubeEnv("${SONARQUBE}") {
+    //         sh 'mvn sonar:sonar'
+    //       }
+    //     }
+    //   }
+    // }
 
     stage('Docker Build & Push') {
       steps {
         dir('app') {
           sh """
-            docker build -t ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER} .
-            docker push ${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER}
+            docker login -u ${DOCKERHUB_USERNAME} -p ${DOCKERHUB_PASSWORD}
+            docker build -t ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${BUILD_NUMBER} .
+            docker push ${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${BUILD_NUMBER}
           """
         }
       }
     }
 
-    stage('Deploy to Kubernetes') {
-      steps {
-        withKubeConfig([credentialsId: 'eks-kubeconfig']) {
-          sh """
-            kubectl set image deployment/app \
-              app=${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER} \
-              -n devops-demo || kubectl apply -f k8s/
-          """
-        }
-      }
-    }
+    // stage('Deploy to Kubernetes') {
+    //   steps {
+    //     withKubeConfig([credentialsId: 'eks-kubeconfig']) {
+    //       sh """
+    //         kubectl set image deployment/app \
+    //           app=${REGISTRY_URL}/${IMAGE_NAME}:${BUILD_NUMBER} \
+    //           -n devops-demo || kubectl apply -f k8s/
+    //       """
+    //     }
+    //   }
+    // }
   }
 
   post {

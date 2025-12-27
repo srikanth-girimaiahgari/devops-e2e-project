@@ -102,10 +102,10 @@ resource "aws_security_group" "nexus_sg" {
 
 resource "aws_instance" "jenkins" {
   ami           = var.jenkins_ami_id
-  instance_type = "t3.micro"
+  instance_type = "t3.medium"
   subnet_id     = module.vpc.public_subnets[0]
   key_name      = aws_key_pair.devops_key.key_name
-
+  associate_public_ip_address = true
   vpc_security_group_ids = [aws_security_group.jenkins_sg.id]
 
   tags = {
@@ -116,10 +116,10 @@ resource "aws_instance" "jenkins" {
 
 resource "aws_instance" "nexus" {
   ami           = var.nexus_ami_id
-  instance_type = "t3.micro"
+  instance_type = "t3.medium"
   subnet_id     = module.vpc.public_subnets[1]
   key_name      = aws_key_pair.devops_key.key_name
-
+  associate_public_ip_address = true
   vpc_security_group_ids = [aws_security_group.nexus_sg.id]
 
   tags = {

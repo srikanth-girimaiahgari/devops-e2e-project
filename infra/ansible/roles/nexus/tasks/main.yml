@@ -1,9 +1,24 @@
 ---
-- name: Run Nexus Repository OSS in Docker
+- name: Install Docker
+  apt:
+    name: docker.io
+    state: present
+    update_cache: yes
+
+- name: Start Docker
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Run Nexus container
   docker_container:
     name: nexus
-    image: sonatype/nexus3:latest
+    image: sonatype/nexus3
     state: started
     restart_policy: always
     ports:
       - "8081:8081"
+      - "5000:5000"
+    volumes:
+      - nexus-data:/nexus-data
