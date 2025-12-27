@@ -16,6 +16,12 @@ variable "jenkins_ami_id" {
   default     = "ami-0e7938ad51d883574"
 }
 
+variable "nexus_ami_id" {
+  description = "AMI for Jenkins EC2"
+  type        = string
+  default     = "ami-0e7938ad51d883574"
+}
+
 variable "key_pair_name" {
   description = "Existing AWS key pair name"
   type        = string

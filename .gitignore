@@ -43,3 +43,5 @@ Thumbs.db
 *.pem
 *.pub       
 devops-demo-key
+tfplan
+tfplan.json

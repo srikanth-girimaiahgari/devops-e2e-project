@@ -6,11 +6,32 @@
     done
   become: yes
 
+- name: Install Docker
+  apt:
+    name: docker.io
+    state: present
+    update_cache: yes
+
+- name: Start and enable Docker service
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Ensure docker socket exists
+  stat:
+    path: /var/run/docker.sock
+  register: docker_socket
+
+- name: Fail if Docker socket is missing
+  fail:
+    msg: "Docker socket not found. Docker daemon is not running."
+  when: not docker_socket.stat.exists
+
 - name: Install Docker SDK for Python
   apt:
     name: python3-docker
     state: present
-    update_cache: yes
 
 - name: Run SonarQube container
   docker_container:
